@@ -1,0 +1,24 @@
+Package: SBMStudy
+Title: Compare techniques of inference on SBM.
+Version: 0.0.0.9000
+Authors@R: 
+    person("Robin", "Botrel", , "robin.mailbox@tutanota.com", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: SBMStudy regroups tools to generate Stochastic Block Model (SBM) or mixture of SBMs and compare multiples techniques of inference.
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+Imports:
+    sbm,
+    colSBM,
+    graphclust,
+    parallel,
+    foreach,
+    doParallel,
+    itertools,
+    purrr,
+    dplyr,
+    FixedPoint,
+    Matrix,
+    gtools
