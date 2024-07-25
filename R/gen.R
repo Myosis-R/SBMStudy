@@ -24,16 +24,16 @@ gen_sbm = function(N,R){
   doParallel::registerDoParallel(par)
 
   iter <- itertools::isplitIndices(n=R, chunks = Ncpus)
-  export <- c("dist_perm_gamma","exICL_with_rand_init","vec_to_num","exICL_f","eta_f","zeta_f","delta_f_vec","rho_f_vec")
+  export <- c("dist_perm_gamma","exICL_sbm","exICL_with_rand_init","vec_to_num","exICL_f","eta_f","zeta_f","delta_f_vec","rho_f_vec")
   package <- c("sbm","graphclust")
   res_par <- foreach::foreach(I_par=iter,.export = export,.packages = package)%dopar%{
 
     R_par = length(I_par)
 
     heterogen = array(0,dim=c(R_par))
-    ARI = array(0,dim=c(R_par,5))
-    ICLs = array(0,dim=c(R_par,5))
-    cl_diff = array(0,dim=c(R_par,5))
+    ARI = array(0,dim=c(R_par,6))
+    exICL = array(0,dim=c(R_par,6))
+    cl_diff = array(0,dim=c(R_par,6))
 
     for(J_par in 1:R_par){
       Z_idx =  sample(rep(c(1,2,3),times=Ncl))
@@ -57,25 +57,34 @@ gen_sbm = function(N,R){
       ARI[J_par,2] = graphclust::ARI(Z,Z_idx)
       cl_diff[J_par,2] = sum(sbm_lib$blockProp>0)-sum(pi_v>0)
 
+
       # exICL inference
-      exICL = exICL_with_rand_init(N,Ncl_init,adj_m)
-      ARI[J_par,3] = graphclust::ARI(exICL$Z,Z_idx)
-      cl_diff[J_par,3] = sum(rowSums(exICL$Z)>0)-sum(pi_v>0)
-      ICLs[J_par,3] = exICL$exICL
+      res = exICL_with_rand_init(N,Ncl_init,adj_m)
+      ARI[J_par,3] = graphclust::ARI(res$Z,Z_idx)
+      cl_diff[J_par,3] = sum(rowSums(res$Z)>0)-sum(pi_v>0)
+      exICL[J_par,3] = res$exICL
 
       # exICL inference with another initialization
-      exICL = exICL_with_rand_init(N,Ncl_init,adj_m)
-      ARI[J_par,4] = graphclust::ARI(exICL$Z,Z_idx)
-      cl_diff[J_par,4] = sum(rowSums(exICL$Z)>0)-sum(pi_v>0)
-      ICLs[J_par,4] = exICL$exICL
+      res = exICL_with_rand_init(N,Ncl_init,adj_m)
+      ARI[J_par,4] = graphclust::ARI(res$Z,Z_idx)
+      cl_diff[J_par,4] = sum(rowSums(res$Z)>0)-sum(pi_v>0)
+      exICL[J_par,4] = res$exICL
 
       # exICL inference with another initialization
-      exICL = exICL_with_rand_init(N,Ncl_init,adj_m)
-      ARI[J_par,5] = graphclust::ARI(exICL$Z,Z_idx)
-      cl_diff[J_par,5] = sum(rowSums(exICL$Z)>0)-sum(pi_v>0)
-      ICLs[J_par,5] = exICL$exICL
+      res = exICL_with_rand_init(N,Ncl_init,adj_m)
+      ARI[J_par,5] = graphclust::ARI(res$Z,Z_idx)
+      cl_diff[J_par,5] = sum(rowSums(res$Z)>0)-sum(pi_v>0)
+      exICL[J_par,5] = res$exICL
+
+      # sbm inference + exICL to select model
+      best_K = exICL_sbm(sbm_lib)
+      sbm_lib$setModel(best_K$idx)
+      Z = sbm_lib$memberships
+      ARI[J_par,6] = graphclust::ARI(Z,Z_idx)
+      cl_diff[J_par,6] = sum(sbm_lib$blockProp>0)-sum(pi_v>0)
+      exICL[J_par,6] = best_K$exICL
     }
-    return(list(heterogen=heterogen,ARI=ARI,cl_diff=cl_diff,ICLs=ICLs))
+    return(list(heterogen=heterogen,ARI=ARI,cl_diff=cl_diff,exICL=exICL))
   }
 
   parallel::stopCluster(par)

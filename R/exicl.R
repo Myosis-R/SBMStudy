@@ -143,5 +143,39 @@ exICL_with_sbm_init = function(N,adj_m){
   return(Z)
 }
 
+#' For an output of SBM library calculate exICL for each model and return argmax
+#' This function is badly optimize
+#'
+#' @param sbm output of sbm::estimateSimpleSBM
+#' @returns index and value of the best model under exICL selection
+#' @export
+exICL_sbm = function(sbm){
+  N = sbm$nbNodes
+  adj_m = sbm$networkData
+  nbModel = length(sbm$storedModels$indexModel)
+  exICL = rep(0,nbModel)
+
+  for(indexModel in 1:nbModel){
+    K = sbm$storedModels$nbBlocks[indexModel]
+    sbm$setModel(indexModel)
+    Z = matrix(0,K,N)
+    Z[matrix(c(sbm$memberships,1:N),nrow = N)] = 1
+    eta = matrix(0,nrow = K,ncol = K)
+    zeta = matrix(0,nrow = K,ncol = K)
+    n = 1/2 + rowSums(Z)
+
+    for(k in 1:K){
+      for(l in 1:K){
+        eta[k,l] = eta_f(N,k,l,Z,adj_m)
+        zeta[k,l] = zeta_f(N,k,l,Z,adj_m)
+      }
+    }
+    exICL[indexModel] = sum(lgamma(eta)+lgamma(zeta)-lgamma(eta+zeta)-2*lgamma(1/2))+
+      lgamma(K/2)+sum(lgamma(n))-lgamma(sum(n))-K*lgamma(1/2)
+  }
+  idx = which.max(exICL)
+  return(list(idx=idx,exICL=exICL[idx]))
+}
+
 
 

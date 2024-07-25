@@ -1,0 +1,159 @@
+---
+output: github_document
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# SBMStudy
+
+SBMStudy regroups tools to generate Stochastic Block Model (SBM) or mixture of SBMs and compare multiples techniques of inference.
+
+## Installation
+
+You can install the development version of SBMStudy from [GitHub](https://github.com/) with:
+
+``` r
+install.packages("devtools")
+devtools::install_github("Myosis-R/SBMStudy")
+```
+
+## Dependencies
+
+``` r
+install.packages('purrr')
+install.packages('gtools')
+install.packages('dplyr')
+install.packages('FixedPoint')
+install.packages('parallel')
+install.packages('doParallel')
+install.packages('foreach')
+install.packages('itertools')
+devtools::install_github('GrossSBM/sbm')
+install.packages('graphclust')
+devtools::install_github('Chabert-Liddell/colSBM')
+```
+
+## Quick walk around SBMStudy
+
+Most useful functions : 
+
+-	gen_sbm : Compare inference algorithms on a given graph
+
+-	gen_mix_sbm : Compare inference algorithms on a collection of graphs
+
+-	gen_vfold : Compare inference algorithms on a given graph using cross-validation technique
+
+-	vem_f : implementation of variationnal expectation-maximization algorithm. 
+
+-	exICL_f : implementation of exact integrated complete likelihood algorithm. 
+ 
+
+## Example 1 : gen_sbm
+
+We analyse inference on a thousand of networks with fifty nodes. The output of gen_sbm is a dataframe where each row is a new network and each column is the result of a criterion on a given inference.
+
+Criteria :
+
+-	heterogen (measure of the heterogeneity of interactions between classes)
+
+-	ARIs (Ajusted Rank Index between infered nodes memberships and truth)
+
+-	cl_diff (Number of infered classes minus truth)
+
+-	exICL (Only for algorithm using exICL, return exICL end value)
+ 
+Models :
+
+1.	package sbm
+
+2.	package sbm with the constrain of 3 classes
+
+3.	exICL with a random initialization
+
+4.	exICL with another random initialization
+
+5.	exICL with another random initialization
+
+6. package sbm using exICL in replacement of ICL in order to select best model
+
+
+```{r example1}
+suppressPackageStartupMessages(library(tidyverse))
+
+res = SBMStudy::gen_sbm(N=50,R=1000)
+glimpse(res)
+```
+
+```{r fig1}
+fig1 = tibble(heterogeneite = res$heterogen1, ARI_VEM = res$ARI1, ARI_ICL = res$ARI3) %>%
+  pivot_longer(c(ARI_VEM,ARI_ICL),names_to = 'color', values_to = 'ARI')
+ggplot(fig1)+aes(heterogeneite,ARI,color=color)+geom_point()+geom_smooth()
+```
+
+
+## Example 2 : gen_mix_sbm
+
+A collection of graphs is generated according to a mixture of SBM, parameters are contained in thetaMix. If not given thetaMix is generated randomly at each loop.
+
+```{r example2}
+thetaMix = list(
+  list(pi=c(0.45,0.55),gamma=matrix(c(.6,.3,.2,.5),2,2),prop=0.5),
+  list(pi=c(0.3,0.3,0.4),gamma=matrix(c(.1,.3,.5,.01,.5,.1,.1,.5,.6), 3,3),prop=0.5)
+)
+res = SBMStudy::gen_mix_sbm(N=30,K=0,M=10,C=0,R=2,thetaMix = thetaMix)
+glimpse(res)
+```
+
+Criteria :
+
+-	heterogen (for each cluster, measure the heterogeneity of interactions between classes, return the minimum)
+
+-	nodes_ARIs (Average nodes ARI over all graphs)
+
+-	clust_ARIs (Ajusted Rank Index between infered network memberships and truth)
+ 
+Models :
+
+1.	package colSBM
+
+2.	package graphclust
+ 
+## example 3 : gen_vfold
+
+This is a cross-validation method applied to graph. Nodes are divided in a train group and a test group. inference of nodes membership is done on the train set. Nodes in the test set are affected to a class thanks to their connections with the train set. Finally edges probabilities between nodes in the test set are derived from the infered parameters on the train set.
+
+```{r example3}
+res = SBMStudy::gen_vfold(50,10)
+glimpse(res)
+```
+
+Criteria :
+
+-	heterogen (measure the heterogeneity of interactions between classes)
+
+-	vfolds (Prediction error over egdes, nodes are split between train and test set)
+ 
+Models :
+
+1.	package sbm
+
+2.	exICL with a random initialization
+
+## Bibliography
+
+-	exICL algorithm : P. Louche 2012
+
+-	vfold algorithm : L. Zhang 2019
+
+-	package sbm : J. Chiquet, S. Donnet, P. Barbillon
+
+-	package colSBM : S-C. Chabert-Liddell, P. Barbillon, S. Donnet
+
+-	package graphclust : T. Rebafka
